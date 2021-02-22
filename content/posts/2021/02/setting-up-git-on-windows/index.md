@@ -1,7 +1,7 @@
 ---
 title: "Setting Up Git & SSH on Windows"
 description: "How to set up git to use ssh on Windows 10 and using OpenSSH"
-date: 2021-02-16
+date: 2021-02-20
 draft: true
 images : ["post-cover.png"]
 tags: ["git", "ssh", "windows"]
@@ -17,7 +17,8 @@ I recently had to rebuild my work laptop and had to remember how to set it all u
 and I remembered that it was a pain in the arse. But with a bit of searching I discovered
 that Windows10 now has an inbuilt SSH client which made things a lot easier.
 
-I'm assuming you've got Git installed already at this point.
+I'm assuming you've got Git installed already at this point (I'm a big fan of
+[chocolatey](https://chocolatey.org/install) for this).
 
 ## Getting going with OpenSSH
 
@@ -62,7 +63,6 @@ I'm including the RSA key here because not everywhere supports using the Ed25519
 so you can fall back to the RSA key if that's the case. [Azure Devops](https://devops.azure.com) - I'm looking
 at you.
 
-
 ```ps
 # Ed25519
 ssh-keygen -t ed25519 -C "user@host"
@@ -75,7 +75,7 @@ The text after the `-C` is a comment and is usually used to append an email or s
 I tend to use my username and the machine name for this as I generate one key per machine.
 
 When it prompts you to enter a file in which to save the key, it's best to hit return and let it save it
-using its default values which is in `.ssh/` in the root of your user directory. 
+using its default values which is in `.ssh/` in the root of your user directory.
 
 When running the command above it will ask you for a passphrase and where to store the private and public
 key files.
@@ -110,6 +110,27 @@ it doesn't already exist.
 [System.Environment]::SetEnvironmentVariable('GIT_SSH','C:\Windows\System32\OpenSSH\ssh.exe')
 ```
 
+## Git Config
+
+Before doing any work with git you'll need to make sure you've set it up to use your name and email.
+
+```ps
+git config --global user.name 'Owain Glyndŵr'
+git config --global user.email og@example.org
+```
+
+Historically git has called it's primary branch `master` and in 2020 there was an
+effort in the tech community to move away from using loaded phrases that can carry
+negative meaning for some users. It looks like the git community has settled on using
+`main` as the new term for the default and primary branch. Creating a new repository on [Github](https://github.com/github/renaming) now uses `main` and git itself has an option in it's global config to [change the default](https://sfconservancy.org/news/2020/jun/23/gitbranchname/) to something else.
+
+If you're going to do a lot of your work on GitHub then it makes sense to change your
+default branch to match GitHub.
+
+```ps
+git config --global init.defaultBranch main
+```
+
 ## Pre-launch
 
 Sometimes when using git from an external GUI such as [Fork](https://git-fork.com/) it will appear to
@@ -136,10 +157,17 @@ that we trust any future connections to that host with that particular key finge
 
 Here are the user and hosts for manually connecting to some of the major Git Hosts
 
-```
+```ps
 GitHub:         git@github.com
 GitLab:         git@gitlab.com
 Azure DevOps:   git@ssh.dev.azure.com
 ```
+
+## Gist
+
+If you can't be bothered to type all of that, here's a gist that you can run via
+Powershell.
+
+{{< gist rhodcodes 978e34f13b3212659601efae30de34d9 >}}
 
 And there we go. Happy gitting and happy shhing.
