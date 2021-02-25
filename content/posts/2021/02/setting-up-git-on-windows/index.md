@@ -1,30 +1,25 @@
 ---
 title: "Setting Up Git & SSH on Windows"
 description: "How to set up git to use ssh on Windows 10 and using OpenSSH"
-date: 2021-02-20
-draft: true
+date: 2021-02-25
 images : ["post-cover.png"]
 tags: ["git", "ssh", "windows"]
 categories: ["tutorials"]
 ---
 
-Have you ever had the pleasure of sitting in front of a fresh clean windows installation
-and gone to try and remember how you set up [Git](https://git-scm.com/) to work with ssh?
-Wasn't there something to do with some silly [Putty](https://www.chiark.greenend.org.uk/~sgtatham/putty/)?
-Or maybe something to do with a [Tortoise](https://tortoisegit.org/)?
+I recently had to rebuild my work laptop and had to remember how I had set up [Git](https://git-scm.com),
+and I remembered that it was a pain in the arse. But after discovering that Windows 10 Pro comes with
+an inbuilt [SSH client](https://en.wikipedia.org/wiki/SSH_(Secure_Shell)) and SSH-Agent I realised that
+it was going to be a lot easier than messing around with PuTTy.
 
-I recently had to rebuild my work laptop and had to remember how to set it all up again,
-and I remembered that it was a pain in the arse. But with a bit of searching I discovered
-that Windows10 now has an inbuilt SSH client which made things a lot easier.
-
-I'm assuming you've got Git installed already at this point (I'm a big fan of
-[chocolatey](https://chocolatey.org/install) for this).
+I'm going to assuming you have Git installed already, but if you haven't take a look at using
+[chocolatey](https://chocolatey.org/install) to get it installed.
 
 ## Getting going with OpenSSH
 
-Lets start by installing the OpenSSH client into Windows, if it isn't already. Open a
-[powershell](https://github.com/PowerShell/PowerShell) [terminal](https://aka.ms/terminal)
-with Administrator rights. The command below will install the OpenSSH client.
+Check that you've got SSH installed first of all, type `ssh` into your [terminal](https://aka.ms/terminal)
+of choice and see if it errors or not. If you don't have it installed you can fire up a powershell window
+with Administrator rights and type in the command below.
 
 ```ps
 Add-WindowsCapability -Online -Name OpenSSH.Client
@@ -32,9 +27,8 @@ Add-WindowsCapability -Online -Name OpenSSH.Client
 
 ### SSH-Agent
 
-SSH-Agent is a tool that manages your keys for you and runs as a Windows service. By default
-Windows disables the service so we'll start it and then set its startup type to Automatic so
-that it's always available.
+SSH-Agent is a service that manages the SSH keys that we'll create later on.By default it's disabled, so
+we'll start off by getting it to run, and making it start up automatically on boot.
 
 ```ps
 # (With Admin rights)
@@ -52,20 +46,25 @@ private part to yourself. If you're after a more in depth explanation about how 
 Ocean have a good article about it
 [here](https://www.digitalocean.com/community/tutorials/understanding-the-ssh-encryption-and-connection-process).
 
-We'll create two types of keys:
+We'll create three types of keys:
 
 1. **Ed25519** - Uses elliptic curve cryptography (I have no idea what it means, but it sounds good) to produce
 a short key that's quick to process but tough to break and it's the recommended key type to use when you can.
-2. **RSA** - The previous default and if you've created keys in the past then it's probably been this type.
+1. **ECDSA** - Is another elliptic curve based key, it's more widely supported than Ed25519 so we'll include it
+as an intermediary between Ed25519 and RSA.
+1. **RSA** - The previous default and if you've created keys in the past then it's probably been this type.
 You can pick your key size, but anything below 2048 bits is **not** recommended.
 
-I'm including the RSA key here because not everywhere supports using the Ed25519 key so we'll generate both
-so you can fall back to the RSA key if that's the case. [Azure Devops](https://devops.azure.com) - I'm looking
+I'm including the RSA key here because not everywhere supports elliptic curve crypto so we'll generate an RSA key
+so you can fall back to it if needed. [Azure Devops](https://devops.azure.com) - I'm looking
 at you.
 
 ```ps
 # Ed25519
 ssh-keygen -t ed25519 -C "user@host"
+
+#ECDSA
+ssh-keygen -t ecdsa -C "user@host"
 
 # RSA with a 4096 bit key
 ssh-keygen -t rsa -b 4096 -C "user@host"
@@ -81,14 +80,14 @@ When running the command above it will ask you for a passphrase and where to sto
 key files.
 
 If you want to secure your key further with a passphrase you can, but you'll be asked for it every time
-it's used. I just hit enter and leave it blank which makes it easier to use in scripts and automated
-environments if needed.
+it's used. Leaving it without a key means it can be used without any intervention which is useful
+in scripts or any automation it's used it.
 
-### Add keys to key chain
+### Involving Secret Agents
 
 Next we add the keys to ssh-agent so that the service can present them when asked by SSH.
 If you've used the default location and file names in the previous step then you just run `ssh-add`
-which will pick up the key files in `.shh/` and print a success message to screen.
+which will pick up the key files in `.ssh/` and list the keys added.
 
 ```ps
 ssh-add
@@ -96,9 +95,9 @@ ssh-add
 
 ## Fixing the Environment
 
-For Git to know which ssh binary to use, which in turn uses the correct ssh-agent to provide our key files
-we need to set an environmental variable - `$GIT_SSH` so that it points to ssh.exe which lives in
-`C:\Windows\System32\OpenSSH\ssh.exe`.
+For Git to know which `ssh` binary to use and thus use the `ssh-agent` we configured earlier and provide
+our key files, we need to set an environmental variable - `$GIT_SSH` so that it points to ssh.exe which
+lives in `C:\Windows\System32\OpenSSH\ssh.exe`.
 
 You might have this already set if you've used PuTTY or TortoiseSVN as this is how they tell git to use
 their own SSH binaries.
@@ -112,17 +111,22 @@ it doesn't already exist.
 
 ## Git Config
 
-Before doing any work with git you'll need to make sure you've set it up to use your name and email.
+### Your Details
+
+Before doing any work with git you'll need to set it up to use your name and email.
 
 ```ps
-git config --global user.name 'Owain Glyndŵr'
-git config --global user.email og@example.org
+git config --global user.name 'Thor'
+git config --global user.email thor@valhalla.net
 ```
 
-Historically git has called it's primary branch `master` and in 2020 there was an
-effort in the tech community to move away from using loaded phrases that can carry
-negative meaning for some users. It looks like the git community has settled on using
-`main` as the new term for the default and primary branch. Creating a new repository on [Github](https://github.com/github/renaming) now uses `main` and git itself has an option in it's global config to [change the default](https://sfconservancy.org/news/2020/jun/23/gitbranchname/) to something else.
+### Renaming the default branch
+
+Historically git has called it's primary branch `master` and in 2020 there was an effort in the tech
+community to move away from using loaded phrases that can carry negative meaning for some users. It
+looks like the git community has settled on using `main` as the new term for the default and primary
+branch. Creating a new repository on [Github](https://github.com/github/renaming) now uses `main` and
+git itself has added an option in it's global config to [change the default](https://sfconservancy.org/news/2020/jun/23/gitbranchname/) to something else.
 
 If you're going to do a lot of your work on GitHub then it makes sense to change your
 default branch to match GitHub.
@@ -134,15 +138,16 @@ git config --global init.defaultBranch main
 ## Pre-launch
 
 Sometimes when using git from an external GUI such as [Fork](https://git-fork.com/) it will appear to
-hang or error out when doing any commands involving SSH. In my experience this is when you connect to
-a server that you've not connected to before and SSH doesn't yet trust it's identity.
+hang or error out when doing any commands involving SSH. I've found that it's usually on the first connection
+to a specific server and happens when SSH is asking if you trust the identity of the server you're connecting
+to. Sometimes the GUI doesn't make it apparent that it's waiting for input, or annoyingly - won't let
+you input anything.
 
-Before using any git commands I like to run a manual ssh connection to any Git servers that I'll be
-interacting. To get the details we need for this get the SSH details provided by a repo and take the
-bits before the `:`. This is the user and the host we need for SSH.
-
-For example `git clone git@github.com:rhodcodes/blog.git` is how I'd clone the repo for this blog.
-And `git@github.com` is the user and the host we need to manually connect via SSH.
+To avoid this I run a manual ssh connection to any git servers that I'll be interacting. To get the
+details we need for this get the SSH details provided by a repo and take the bits before the `:`.
+This is the user and the host we need for SSH. For example `git clone git@github.com:rhodcodes/blog.git`
+is how I'd clone the repo for this blog.And `git@github.com` is the user and the host we need to
+manually connect via SSH.
 
 ```ps
 ssh git@github.com
@@ -163,11 +168,9 @@ GitLab:         git@gitlab.com
 Azure DevOps:   git@ssh.dev.azure.com
 ```
 
-## Gist
+## Conclusion
 
-If you can't be bothered to type all of that, here's a gist that you can run via
-Powershell.
+In this article we've walked through setting up and configuring both git and ssh so they work
+together without any future action need on a Windows 10 system.
 
-{{< gist rhodcodes 978e34f13b3212659601efae30de34d9 >}}
-
-And there we go. Happy gitting and happy shhing.
+Thanks for reading.
